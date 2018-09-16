@@ -17,15 +17,8 @@ class Sphere {
       float D = b*b - 4*a*c;
       if(D < 0) return false;
 
-      float t0, t1;
-      if(b > 0) {
-        t0 = -2*c/(b + std::sqrt(D));
-        t1 = (-b - std::sqrt(D))/(2*a);
-      }
-      else {
-        t1 = (-b + std::sqrt(D))/(2*a);
-        t0 = 2*c/(-b + std::sqrt(D));
-      }
+      float t0 = (-b - std::sqrt(D))/(2*a);
+      float t1 = (-b + std::sqrt(D))/(2*a);
 
       float t = t0;
       if(t > ray.tmax) return false;

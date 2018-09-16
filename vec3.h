@@ -51,7 +51,7 @@ inline Vec3 operator*(const Vec3& v1, float k) {
   return Vec3(v1.x * k, v1.y * k, v1.z * k);
 }
 inline Vec3 operator*(float k, const Vec3& v2) {
-  return Vec3(k - v2.x, k - v2.y, k - v2.z);
+  return Vec3(k * v2.x, k * v2.y, k * v2.z);
 }
 
 inline Vec3 operator/(const Vec3& v1, const Vec3& v2) {
