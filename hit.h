@@ -14,6 +14,6 @@ class Hit {
     float u;
     float v;
 
-    Hit() {};
+    Hit() : t(1e9) {};
 };
 #endif
