@@ -7,7 +7,7 @@
 #include "scene.h"
 
 
-const float R = 1000;
+const float R = 10;
 const float R_atmos = 6381 * 1000;
 
 
@@ -15,6 +15,7 @@ RGB Li(const Ray& ray, const Scene& scene) {
   Hit res;
   if(scene.intersect(ray, res)) {
     return (res.hitNormal + 1)/2;
+    //return dot(res.hitNormal, Vec3(0, 0, -1));
   }
   else {
     return RGB(0);
@@ -24,7 +25,7 @@ RGB Li(const Ray& ray, const Scene& scene) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, R + 100, 100), normalize(Vec3(0, -1, 1)));
+  Camera cam(Vec3(0, 0, -2*R), normalize(Vec3(0, 0, 1)));
 
   std::vector<std::shared_ptr<Shape>> shapes;
   auto earth = std::make_shared<Sphere>(Vec3(0, 0, 0), R);

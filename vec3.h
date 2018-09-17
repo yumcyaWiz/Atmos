@@ -12,6 +12,9 @@ class Vec3 {
     Vec3(float _x) { x = y = z = _x; };
     Vec3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {};
 
+    Vec3 operator-() const {
+      return Vec3(-x, -y, -z);
+    };
     Vec3& operator+=(const Vec3& v) {
       x += v.x; y += v.y; z += v.z;
       return *this;
@@ -86,6 +89,15 @@ inline Vec3 normalize(const Vec3& v) {
 
 inline Vec3 pow(const Vec3& v, float n) {
   return Vec3(std::pow(v.x, n), std::pow(v.y, n), std::pow(v.z, n));
+}
+
+
+inline void orthonormalBasis(const Vec3& n, Vec3& vx, Vec3& vz) {
+  if(std::abs(n.x) > 0.9) vx = Vec3(0, 1, 0);
+  else vx = Vec3(1, 0, 0);
+
+  vx = normalize(vx - n*dot(vx, n));
+  vz = cross(n, vx);
 }
 
 
