@@ -13,7 +13,8 @@ class Hit {
     const Sphere* hitSphere;
     float u;
     float v;
+    int iteration;
 
-    Hit() : t(1e9) {};
+    Hit() : t(1e9), iteration(0) {};
 };
 #endif
