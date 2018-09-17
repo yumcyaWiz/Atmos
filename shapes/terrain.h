@@ -16,14 +16,23 @@ class Terrain : public Shape {
       return std::modf(std::sin(u.x * 12.9898 + u.y * 78.233) * 43758.5453123, &i);
     };
     float heightMap(const Vec2& u) const {
-      return std::sin(100*u.x)*std::sin(100*u.y) + 1;
+      return 20*(std::sin(100*u.x)*std::sin(100*u.y) + 1);
     };
     Vec3 heightMapNormal(const Vec3& p) const {
       Vec3 n = normalize(p - sphere->center);
       Vec2 u = approxUV(p);
-      float du = 0.1*(heightMap(u + Vec2(0.001, 0)) - heightMap(u - Vec2(0.001, 0)))/0.002;
-      float dv = 0.1*(heightMap(u + Vec2(0, 0.001)) - heightMap(u - Vec2(0, 0.001)))/0.002;
-      return normalize(Vec3(du, 1, dv));
+
+      float phi = 2*M_PI*u.x;
+      float theta = M_PI*u.y;
+      float px = sphere->radius * std::cos(phi) * std::sin(theta);
+      float py = sphere->radius * std::cos(theta);
+      float pz = sphere->radius * std::sin(phi) * std::sin(theta);
+      Vec3 dpdu = normalize(Vec3(-2*M_PI*pz, 0, 2*M_PI*px));
+      Vec3 dpdv = normalize(M_PI * Vec3(pz * std::cos(phi), -sphere->radius*std::sin(theta), pz*std::sin(phi)));
+
+      float du = (heightMap(u + Vec2(0.001, 0)) - heightMap(u - Vec2(0.001, 0)));
+      float dv = (heightMap(u + Vec2(0, 0.001)) - heightMap(u - Vec2(0, 0.001)));
+      return normalize(du*Vec3(1, 0, 0) + dv*Vec3(0, 0, 1) + n);
     };
 
     Vec2 approxUV(const Vec3& p) const {
@@ -52,7 +61,7 @@ class Terrain : public Shape {
       if(sphere->intersect(ray, res)) {
         Vec3 startPoint = ray.origin;
         Vec3 endPoint = res.hitPos;
-        for(int i = 0; i < 1000; i++) {
+        for(int i = 0; i < 100; i++) {
           Vec3 midPoint = (startPoint + endPoint)/2;
           float tdist = terrainDist(midPoint);
 
@@ -82,7 +91,7 @@ class Terrain : public Shape {
         float t = 0;
         Vec3 p = ray(t);
         res.iteration = 0;
-        for(int i = 0; i < 1000; i++) {
+        for(int i = 0; i < 100; i++) {
           float dist = terrainDist(p);
           res.iteration++;
           if(std::abs(dist) < 0.1) {

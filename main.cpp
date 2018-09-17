@@ -11,9 +11,20 @@ const float R = 1000;
 const float R_atmos = 6381 * 1000;
 
 
+RGB Li(const Ray& ray, const Scene& scene) {
+  Hit res;
+  if(scene.intersect(ray, res)) {
+    return (res.hitNormal + 1)/2;
+  }
+  else {
+    return RGB(0);
+  }
+}
+
+
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, R + 10, 100), normalize(Vec3(0, 0, 1)));
+  Camera cam(Vec3(0, R + 100, 100), normalize(Vec3(0, -1, 1)));
 
   std::vector<std::shared_ptr<Shape>> shapes;
   auto earth = std::make_shared<Sphere>(Vec3(0, 0, 0), R);
@@ -29,10 +40,7 @@ int main() {
       float u = (2.0*i - film.width)/film.width;
       float v = (2.0*j - film.height)/film.width;
       Ray ray = cam.getRay(u, v);
-      Hit res;
-      if(scene.intersect(ray, res)) {
-        film.addSample(i, j, RGB(dot(res.hitNormal, Vec3(0, 1, 0))));
-      }
+      film.addSample(i, j, Li(ray, scene));
     }
   }
   film.ppm_output("output.ppm");
