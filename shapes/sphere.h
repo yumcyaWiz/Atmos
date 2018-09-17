@@ -1,9 +1,10 @@
 #ifndef SPHERE_H
 #define SPHERE_H
-#include "vec3.h"
-#include "ray.h"
-#include "hit.h"
-class Sphere {
+#include "../vec3.h"
+#include "../ray.h"
+#include "../hit.h"
+#include "../shape.h"
+class Sphere : public Shape {
   public:
     Vec3 center;
     float radius;

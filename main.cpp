@@ -1,19 +1,25 @@
 #include "vec3.h"
 #include "ray.h"
-#include "sphere.h"
+#include "shapes/sphere.h"
 #include "film.h"
 #include "camera.h"
-#include "accel.h"
+#include "scene.h"
+
+
+const float R = 6371 * 1000;
+const float R_atmos = 6381 * 1000;
 
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, 0, 0), Vec3(0, 0, 1));
+  Camera cam(Vec3(0, R + 10, 0), Vec3(0, 0, 1));
 
-  auto sphere = std::make_shared<Sphere>(Vec3(0, 0, 3), 1.0);
+  std::vector<std::shared_ptr<Shape>> shapes;
+  auto earth = std::make_shared<Sphere>(Vec3(0, 0, 0), R);
+  auto atmos = std::make_shared<Sphere>(Vec3(0, 0, 0), R_atmos);
+  shapes.push_back(earth);
 
-  Accel accel;
-  accel.add(sphere);
+  Scene scene(shapes);
 
 #pragma omp parallel for schedule(dynamic, 1)
   for(int i = 0; i < film.width; i++) {
@@ -21,13 +27,9 @@ int main() {
       float u = (2.0*i - film.width)/film.width;
       float v = (2.0*j - film.height)/film.width;
       Ray ray = cam.getRay(u, v);
-      
       Hit res;
-      if(accel.intersect(ray, res)) {
-        film.addSample(i, j, (res.hitNormal + 1)/2);
-      }
-      else{
-        film.addSample(i, j, RGB(0));
+      if(scene.intersect(ray, res)) {
+        film.addSample(i, j, RGB(1));
       }
     }
   }
