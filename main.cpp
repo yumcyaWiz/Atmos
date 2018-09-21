@@ -7,9 +7,10 @@
 #include "scene.h"
 #include "textures/imageTexture.h"
 #include "materials/lambert.h"
+#include "samplers/mt.h"
 
 
-const float R = 10;
+const float R = 6381;
 const float R_atmos = 6381 * 1000;
 
 
@@ -29,9 +30,9 @@ RGB Li(const Ray& ray, const Scene& scene) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, 0, -2*R), normalize(Vec3(0, 0, 1)));
+  Camera cam(Vec3(0, 0, -R - 100), normalize(Vec3(0, 1, 0)));
 
-  auto tex = std::make_shared<ImageTexture>("earth.jpg");
+  auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
 
   std::vector<std::shared_ptr<Shape>> shapes;
@@ -41,14 +42,17 @@ int main() {
   shapes.push_back(earth);
 
   Scene scene(shapes);
+  Mt mt;
 
 #pragma omp parallel for schedule(dynamic, 1)
-  for(int i = 0; i < film.width; i++) {
-    for(int j = 0; j < film.height; j++) {
-      float u = (2.0*i - film.width)/film.width;
-      float v = (2.0*j - film.height)/film.width;
-      Ray ray = cam.getRay(u, v);
-      film.addSample(i, j, Li(ray, scene));
+  for(int k = 0; k < 100; k++) {
+    for(int i = 0; i < film.width; i++) {
+      for(int j = 0; j < film.height; j++) {
+        float u = (2.0*i + mt.getNext() - film.width)/film.width;
+        float v = (2.0*j + mt.getNext() - film.height)/film.width;
+        Ray ray = cam.getRay(u, v);
+        film.addSample(i, j, Li(ray, scene));
+      }
     }
   }
   film.ppm_output("output.ppm");

@@ -10,7 +10,12 @@ class Camera {
     Vec3 camUp;
 
     Camera(const Vec3& _camPos, const Vec3& _camForward) : camPos(_camPos), camForward(_camForward) {
-      camRight = normalize(cross(camForward, Vec3(0, 1, 0)));
+      if(std::abs(camForward.y) < 0.9) {
+        camRight = normalize(cross(camForward, Vec3(0, 1, 0)));
+      }
+      else {
+        camRight = -normalize(cross(camForward, Vec3(0, 0, 1)));
+      }
       camUp = normalize(cross(camRight, camForward));
     };
 
