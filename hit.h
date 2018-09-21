@@ -3,14 +3,14 @@
 #include "vec3.h"
 #include "ray.h"
 
-class Sphere;
+class Shape;
 
 class Hit {
   public:
     float t;
     Vec3 hitPos;
     Vec3 hitNormal;
-    const Sphere* hitSphere;
+    const Shape* hitShape;
     float u;
     float v;
     int iteration;

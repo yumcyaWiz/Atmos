@@ -9,7 +9,7 @@ class Sphere : public Shape {
     Vec3 center;
     float radius;
 
-    Sphere(const Vec3& _center, float _radius) : center(_center), radius(_radius) {};
+    Sphere(const std::shared_ptr<Material>& _material, const Vec3& _center, float _radius) : Shape(_material), center(_center), radius(_radius) {};
 
     bool intersect(const Ray& ray, Hit& res) const {
       float a = ray.direction.length2();
@@ -31,7 +31,7 @@ class Sphere : public Shape {
       res.t = t;
       res.hitPos = ray(t);
       res.hitNormal = normalize(res.hitPos - center);
-      res.hitSphere = this;
+      res.hitShape = this;
 
       float phi = std::atan2(res.hitNormal.z, res.hitNormal.x);
       if(phi < 0) phi += 2*M_PI;

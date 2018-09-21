@@ -54,8 +54,8 @@ class Terrain : public Shape {
     };
 
   public:
-    Terrain(const Vec3& origin, float radius) {
-      sphere = std::make_shared<Sphere>(origin, radius);
+    Terrain(const std::shared_ptr<Material>& material, const Vec3& origin, float radius) : Shape(material) {
+      sphere = std::make_shared<Sphere>(material, origin, radius);
     };
 
     bool intersect(const Ray& ray, Hit& res) const {
