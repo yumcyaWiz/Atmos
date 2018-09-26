@@ -10,18 +10,18 @@
 #include "samplers/mt.h"
 
 
-const float R = 6371;
-const float R_atmos = 6381;
+const float R = 6360;
+const float R_atmos = 6400;
 
 
-const Vec3 sunDir = normalize(Vec3(1, 1, -1));
-const RGB sunColor = RGB(1, 1, 1);
+const Vec3 sunDir = normalize(Vec3(0, 0, -1));
+const RGB sunColor = RGB(15, 10, 10);
 
 
 const float rayleigh_scaleheight = 7.4;
 const float mie_scaleheight = 1.2;
-const RGB beta_rayleigh = RGB(3.3e-6, 13.6e-6, 33.1e-6);
-const RGB beta_mie = RGB(21e-6);
+const RGB beta_rayleigh = RGB(3.8e-3, 13.5e-3, 33.1e-3);
+const RGB beta_mie = RGB(21e-3);
 float rayleigh_phase_function(const Vec3& wo, const Vec3& wi) {
   float mu = dot(wo, wi);
   return 3.0/(16.0*M_PI) * (1.0 + mu*mu);
@@ -32,57 +32,63 @@ float mie_phase_function(const Vec3& wo, const Vec3& wi, float g) {
 }
 
 
-const int maxDepth = 10000;
-const float ds = 1;
+const int samples = 100;
 RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
-  RGB L;
-  RGB T(1);
-
   Ray ray = _ray;
-  for(int depth = 0; depth < maxDepth; depth++) {
-    if(isZero(T)) break;
-
-    Hit res;
-    if(scene.intersect(ray, res)) {
-      float h = ray.origin.length() - R;
-      Vec3 wo = -ray.direction;
-      float cos = std::max(dot(wo, sunDir), 0.0f);
-
-      //地面に当たった場合
-      if(res.t < ds && res.hitShape->type == "ground") {
-        auto hitMaterial = res.hitShape->material;
-        L += T * M_PI*hitMaterial->f(res, wo, sunDir)*cos*sunColor;
-        break;
-      }
-      //大気圏外から大気に当たった場合
-      else if(h > (R_atmos - R) && res.hitShape->type == "atmos") {
-        //Next Ray
-        ray = Ray(res.hitPos, ray.direction);
-      }
-      else {
-        Vec3 p = ray(ds);
-        h = p.length() - R;
-
-        float optical_depth_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
-        RGB tau = beta_rayleigh * optical_depth_rayleigh;
-        T *= exp(-tau);
-
-        //Direct Light Sampling
-        Ray shadowRay(p, sunDir);
-        Hit shadow_res;
-        bool hit = scene.intersect(shadowRay, shadow_res);
-        if(!hit || shadow_res.hitShape->type == "atmos") {
-          L += T * rayleigh_phase_function(wo, shadowRay.direction) * sunColor;
-        }
-
-        //NextRay
-        Vec3 wi = sampleSphere(sampler.getNext2D());
-        ray = Ray(p, wi);
-        T *= rayleigh_phase_function(wo, wi);
-      }
+  RGB L;
+  Hit res;
+  bool insideAtmos = ray.origin.length() - R_atmos < 0;
+  if(!insideAtmos) {
+    if(scene.intersect(ray, res) && res.hitShape->type == "atmos") {
+      ray = Ray(res.hitPos, ray.direction);
     }
     else {
-      break;
+      return RGB(0);
+    }
+  }
+
+  if(scene.intersect(ray, res)) {
+    float ds = res.t/samples;
+    float rayleigh_optical_depth = 0;
+    for(int i = 0; i < samples; i++) {
+      Vec3 p = ray(ds);
+      float h = p.length() - R;
+      float h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
+      rayleigh_optical_depth += h_rayleigh;
+
+      Ray lightRay = Ray(p, sunDir);
+      Hit light_res;
+      if(!scene.intersect(lightRay, light_res)) break;
+      
+      float rayleigh_optical_depth_light = 0;
+      float ds_light = light_res.t/samples;
+      for(int j = 0; j < samples; j++) {
+        Vec3 p_light = lightRay(ds_light);
+        float h_light = p_light.length() - R;
+        rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+      }
+
+      RGB tau = beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light);
+      RGB attenuation = exp(-tau);
+      L += beta_rayleigh * h_rayleigh * attenuation * rayleigh_phase_function(-ray.direction, sunDir) * sunColor;
+    }
+
+    if(res.hitShape->type == "ground") {
+      auto hitMaterial = res.hitShape->material;
+      float cos = std::max(dot(-ray.direction, sunDir), 0.0f);
+      Ray lightRay = Ray(res.hitPos, sunDir);
+      Hit light_res;
+      scene.intersect(lightRay, light_res);
+      float rayleigh_optical_depth_light = 0;
+      float ds_light = light_res.t/samples;
+      for(int j = 0; j < samples; j++) {
+        Vec3 p_light = lightRay(ds_light);
+        float h_light = p_light.length() - R;
+        rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+      }
+      RGB tau = beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light);
+      RGB attenuation = exp(-tau);
+      L += beta_rayleigh * res.t * attenuation * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
     }
   }
   return L;
@@ -91,7 +97,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(R + 1, 0, 0), normalize(Vec3(0, 0, 1)));
+  Camera cam(Vec3(0, 0, -2*R), normalize(Vec3(0, 0, 1)));
 
   auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
