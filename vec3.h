@@ -19,6 +19,10 @@ class Vec3 {
       x += v.x; y += v.y; z += v.z;
       return *this;
     };
+    Vec3& operator*=(const Vec3& v) {
+      x *= v.x; y *= v.y; z *= v.z;
+      return *this;
+    };
 
     float length() const {
       return std::sqrt(x*x + y*y + z*z);
@@ -90,6 +94,9 @@ inline Vec3 normalize(const Vec3& v) {
 inline Vec3 pow(const Vec3& v, float n) {
   return Vec3(std::pow(v.x, n), std::pow(v.y, n), std::pow(v.z, n));
 }
+inline Vec3 exp(const Vec3& v) {
+  return Vec3(std::exp(v.x), std::exp(v.y), std::exp(v.z));
+}
 
 
 inline void orthonormalBasis(const Vec3& n, Vec3& vx, Vec3& vz) {
@@ -98,6 +105,11 @@ inline void orthonormalBasis(const Vec3& n, Vec3& vx, Vec3& vz) {
 
   vx = normalize(vx - n*dot(vx, n));
   vz = cross(n, vx);
+}
+
+
+inline bool isZero(const Vec3& v) {
+  return v.x == 0 && v.y == 0 && v.z == 0;
 }
 
 

@@ -16,7 +16,7 @@ class Terrain : public Shape {
       return std::modf(std::sin(u.x * 12.9898 + u.y * 78.233) * 43758.5453123, &i);
     };
     float heightMap(const Vec2& u) const {
-      return (std::sin(100*u.x)*std::sin(100*u.y) + 1);
+      return 200*(std::sin(100*u.x)*std::sin(100*u.y) + 1);
     };
     Vec3 heightMapNormal(const Vec3& p) const {
       Vec3 n = normalize(p - sphere->center);
@@ -54,8 +54,8 @@ class Terrain : public Shape {
     };
 
   public:
-    Terrain(const std::shared_ptr<Material>& material, const Vec3& origin, float radius) : Shape(material) {
-      sphere = std::make_shared<Sphere>(material, origin, radius);
+    Terrain(const std::shared_ptr<Material>& material, const std::string& _type, const Vec3& origin, float radius) : Shape(material, _type) {
+      sphere = std::make_shared<Sphere>(material, _type, origin, radius);
     };
 
     bool intersect(const Ray& ray, Hit& res) const {
@@ -67,13 +67,14 @@ class Terrain : public Shape {
           Vec3 midPoint = (startPoint + endPoint)/2;
           float tdist = terrainDist(midPoint);
 
-          if(std::abs(tdist) < 0.001) {
+          if(std::abs(tdist) < 0.1) {
             res.t = (midPoint - ray.origin).length();
             res.hitPos = midPoint;
             Vec2 uv = approxUV(midPoint);
             res.u = uv.x;
             res.v = uv.y;
             res.hitNormal = heightMapNormal(midPoint);
+            res.hitShape = this;
             return true;
             break;
           }
@@ -96,7 +97,7 @@ class Terrain : public Shape {
         for(int i = 0; i < 1000; i++) {
           float dist = terrainDist(p);
           res.iteration++;
-          if(std::abs(dist) < 0.001) {
+          if(std::abs(dist) < 0.1) {
             hit = true;
             res.t = t;
             res.hitPos = p;
@@ -104,6 +105,7 @@ class Terrain : public Shape {
             res.u = uv.x;
             res.v = uv.y;
             res.hitNormal = heightMapNormal(p);
+            res.hitShape = this;
             break;
           }
           t += dist/2;

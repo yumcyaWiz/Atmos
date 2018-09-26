@@ -9,7 +9,7 @@ class Sphere : public Shape {
     Vec3 center;
     float radius;
 
-    Sphere(const std::shared_ptr<Material>& _material, const Vec3& _center, float _radius) : Shape(_material), center(_center), radius(_radius) {};
+    Sphere(const std::shared_ptr<Material>& _material, const std::string& _type, const Vec3& _center, float _radius) : Shape(_material, _type), center(_center), radius(_radius) {};
 
     bool intersect(const Ray& ray, Hit& res) const {
       float a = ray.direction.length2();
