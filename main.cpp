@@ -14,7 +14,7 @@ const float R = 6360;
 const float R_atmos = 6420;
 
 
-const Vec3 sunDir = normalize(Vec3(0, 0, -1));
+const Vec3 sunDir = normalize(Vec3(1, 1, -1));
 const RGB sunColor = RGB(5);
 
 
@@ -58,7 +58,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
       Ray lightRay = Ray(p, sunDir);
       Hit light_res;
-      if(!scene.intersect(lightRay, light_res)) {
+      if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") {
         break;
       }
       
@@ -77,19 +77,22 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
     if(res.hitShape->type == "ground") {
       auto hitMaterial = res.hitShape->material;
-      float cos = std::max(dot(-ray.direction, sunDir), 0.0f);
+      float cos = std::max(dot(res.hitNormal, sunDir), 0.0f);
       Ray lightRay = Ray(res.hitPos, sunDir);
       Hit light_res;
       scene.intersect(lightRay, light_res);
-      float rayleigh_optical_depth_light = 0;
-      float ds_light = light_res.t/samples;
-      for(int j = 0; j < samples; j++) {
-        Vec3 p_light = lightRay(ds_light * (j + 1));
-        float h_light = p_light.length() - R;
-        rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+
+      if(light_res.hitShape->type == "atmos") {
+        float rayleigh_optical_depth_light = 0;
+        float ds_light = light_res.t/samples;
+        for(int j = 0; j < samples; j++) {
+          Vec3 p_light = lightRay(ds_light * (j + 1));
+          float h_light = p_light.length() - R;
+          rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+        }
+        RGB trans = exp(-beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light));
+        L += trans * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
       }
-      RGB trans = exp(-beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light));
-      L += trans * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
     }
   }
   return L;
