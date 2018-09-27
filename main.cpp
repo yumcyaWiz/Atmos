@@ -10,6 +10,7 @@
 #include "samplers/mt.h"
 
 
+const int samples = 100;
 const float R = 6360;
 const float R_atmos = 6420;
 
@@ -32,6 +33,23 @@ RGB rayleigh_beta(float height) {
 }
 
 
+void scattering_coeff(const Vec3& p1, const Vec3& p2, float rayleigh_optical_depth, float mie_optical_depth, float h_rayleigh, float h_mie, RGB& rayleigh_coeff, RGB& mie_coeff, RGB& trans) {
+  Ray lightRay(p1, normalize(p2 - p1));
+  float rayleigh_optical_depth_light = 0;
+  float mie_optical_depth_light = 0;
+  float ds_light = (p2 - p1).length()/samples;
+  for(int j = 0; j < samples; j++) {
+    Vec3 p_light = lightRay(ds_light * (j + 1));
+    float h_light = p_light.length() - R;
+    rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+    mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
+  }
+  trans = exp(-(beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light) + beta_mie * (mie_optical_depth + mie_optical_depth_light)));
+  rayleigh_coeff = beta_rayleigh * h_rayleigh;
+  mie_coeff = beta_mie * h_mie;
+}
+
+
 float rayleigh_phase_function(const Vec3& wo, const Vec3& wi) {
   float mu = dot(wo, wi);
   return 3.0/(16.0*M_PI) * (1.0 + mu*mu);
@@ -42,7 +60,6 @@ float mie_phase_function(const Vec3& wo, const Vec3& wi, float g) {
 }
 
 
-const int samples = 100;
 RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
   Ray ray = _ray;
   RGB L;
@@ -77,19 +94,8 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
         break;
       }
       
-      float rayleigh_optical_depth_light = 0;
-      float mie_optical_depth_light = 0;
-      float ds_light = light_res.t/samples;
-      for(int j = 0; j < samples; j++) {
-        Vec3 p_light = lightRay(ds_light * (j + 1));
-        float h_light = p_light.length() - R;
-        rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
-        mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
-      }
-
-      RGB trans = exp(-(beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light) + beta_mie * (mie_optical_depth + mie_optical_depth_light)));
-      RGB rayleigh_coeff = beta_rayleigh * h_rayleigh;
-      RGB mie_coeff = beta_mie * h_mie;
+      RGB rayleigh_coeff, mie_coeff, trans;
+      scattering_coeff(p, light_res.hitPos, rayleigh_optical_depth, mie_optical_depth, h_rayleigh, h_mie, rayleigh_coeff, mie_coeff, trans);
       L += (rayleigh_coeff * rayleigh_phase_function(-ray.direction, sunDir) + mie_coeff * mie_phase_function(-ray.direction, sunDir, 0.76)) * trans * sunColor;
     }
 
@@ -101,16 +107,8 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
       scene.intersect(lightRay, light_res);
 
       if(light_res.hitShape->type == "atmos") {
-        float rayleigh_optical_depth_light = 0;
-        float mie_optical_depth_light = 0;
-        float ds_light = light_res.t/samples;
-        for(int j = 0; j < samples; j++) {
-          Vec3 p_light = lightRay(ds_light * (j + 1));
-          float h_light = p_light.length() - R;
-          rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
-          mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
-        }
-        RGB trans = exp(-(beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light) + beta_mie * (mie_optical_depth + mie_optical_depth_light)));
+        RGB rayleigh_coeff, mie_coeff, trans;
+        scattering_coeff(res.hitPos, light_res.hitPos, rayleigh_optical_depth, mie_optical_depth, 0, 0, rayleigh_coeff, mie_coeff, trans);
         L += trans * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
       }
     }
