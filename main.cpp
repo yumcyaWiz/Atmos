@@ -14,7 +14,7 @@ const float R = 6360;
 const float R_atmos = 6420;
 
 
-const Vec3 sunDir = normalize(Vec3(1, 1, -1));
+const Vec3 sunDir = normalize(Vec3(0, 0, -1));
 const RGB sunColor = RGB(5);
 
 
@@ -22,6 +22,16 @@ const float rayleigh_scaleheight = 8.0;
 const float mie_scaleheight = 1.2;
 const RGB beta_rayleigh = RGB(3.8e-3, 13.5e-3, 33.1e-3);
 const RGB beta_mie = RGB(21e-3);
+
+
+float rayleigh_beta_lambda(float height, float lambda) {
+  return 8*std::pow(M_PI, 3.0)*std::pow(std::pow(1.000292, 2.0) - 1, 2.0)/(3*1.2*std::pow(lambda, 4.0)) * std::exp(-height/8.0);
+}
+RGB rayleigh_beta(float height) {
+  return RGB(rayleigh_beta_lambda(height, 440*1e-9), rayleigh_beta_lambda(height, 550*1e-9), rayleigh_beta_lambda(height, 680*1e-9));
+}
+
+
 float rayleigh_phase_function(const Vec3& wo, const Vec3& wi) {
   float mu = dot(wo, wi);
   return 3.0/(16.0*M_PI) * (1.0 + mu*mu);
@@ -37,6 +47,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
   Ray ray = _ray;
   RGB L;
   Hit res;
+
   bool insideAtmos = ray.origin.length() - R_atmos < 0;
   if(!insideAtmos) {
     if(scene.intersect(ray, res) && res.hitShape->type == "atmos") {
@@ -50,11 +61,14 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
   if(scene.intersect(ray, res)) {
     float ds = res.t/samples;
     float rayleigh_optical_depth = 0;
+    float mie_optical_depth = 0;
     for(int i = 0; i < samples; i++) {
       Vec3 p = ray(ds * (i + 1));
       float h = p.length() - R;
       float h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
+      float h_mie = std::exp(-h/mie_scaleheight) * ds;
       rayleigh_optical_depth += h_rayleigh;
+      mie_optical_depth += h_mie;
 
       Ray lightRay = Ray(p, sunDir);
       Hit light_res;
@@ -63,16 +77,19 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
       }
       
       float rayleigh_optical_depth_light = 0;
+      float mie_optical_depth_light = 0;
       float ds_light = light_res.t/samples;
       for(int j = 0; j < samples; j++) {
         Vec3 p_light = lightRay(ds_light * (j + 1));
         float h_light = p_light.length() - R;
         rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+        mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
       }
 
-      RGB trans = exp(-beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light));
-      RGB coeff_s = beta_rayleigh * h_rayleigh;
-      L += coeff_s * rayleigh_phase_function(-ray.direction, sunDir) * trans * sunColor;
+      RGB trans = exp(-(beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light) + beta_mie * (mie_optical_depth + mie_optical_depth_light)));
+      RGB rayleigh_coeff = beta_rayleigh * h_rayleigh;
+      RGB mie_coeff = beta_mie * h_mie;
+      L += (rayleigh_coeff * rayleigh_phase_function(-ray.direction, sunDir) + mie_coeff * mie_phase_function(-ray.direction, sunDir, 0.76)) * trans * sunColor;
     }
 
     if(res.hitShape->type == "ground") {
@@ -84,13 +101,15 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
       if(light_res.hitShape->type == "atmos") {
         float rayleigh_optical_depth_light = 0;
+        float mie_optical_depth_light = 0;
         float ds_light = light_res.t/samples;
         for(int j = 0; j < samples; j++) {
           Vec3 p_light = lightRay(ds_light * (j + 1));
           float h_light = p_light.length() - R;
           rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+          mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
         }
-        RGB trans = exp(-beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light));
+        RGB trans = exp(-(beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light) + beta_mie * (mie_optical_depth + mie_optical_depth_light)));
         L += trans * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
       }
     }
@@ -101,7 +120,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, 0, -2*R), normalize(Vec3(0, 0, 1)));
+  Camera cam(Vec3(0, 0, -R - 50), normalize(Vec3(0, 1, 0)));
 
   auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
