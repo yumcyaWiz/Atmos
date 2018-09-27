@@ -14,7 +14,7 @@ const float R = 6360;
 const float R_atmos = 6420;
 
 
-const Vec3 sunDir = normalize(Vec3(0, 0, -1));
+const Vec3 sunDir = normalize(Vec3(1, 1, -1));
 const RGB sunColor = RGB(5);
 
 
@@ -46,10 +46,10 @@ const int samples = 100;
 RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
   Ray ray = _ray;
   RGB L;
-  Hit res;
 
   bool insideAtmos = ray.origin.length() - R_atmos < 0;
   if(!insideAtmos) {
+    Hit res;
     if(scene.intersect(ray, res) && res.hitShape->type == "atmos") {
       ray = Ray(res.hitPos, ray.direction);
     }
@@ -58,6 +58,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
     }
   }
 
+  Hit res;
   if(scene.intersect(ray, res)) {
     float ds = res.t/samples;
     float rayleigh_optical_depth = 0;
@@ -120,7 +121,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, 0, -R - 50), normalize(Vec3(0, 1, 0)));
+  Camera cam(Vec3(0, 0, -R - 400), normalize(Vec3(1, 1, 1)));
 
   auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
