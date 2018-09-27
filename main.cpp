@@ -11,14 +11,14 @@
 
 
 const float R = 6360;
-const float R_atmos = 6400;
+const float R_atmos = 6420;
 
 
 const Vec3 sunDir = normalize(Vec3(0, 0, -1));
-const RGB sunColor = RGB(15, 10, 10);
+const RGB sunColor = RGB(5);
 
 
-const float rayleigh_scaleheight = 7.4;
+const float rayleigh_scaleheight = 8.0;
 const float mie_scaleheight = 1.2;
 const RGB beta_rayleigh = RGB(3.8e-3, 13.5e-3, 33.1e-3);
 const RGB beta_mie = RGB(21e-3);
@@ -51,26 +51,28 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
     float ds = res.t/samples;
     float rayleigh_optical_depth = 0;
     for(int i = 0; i < samples; i++) {
-      Vec3 p = ray(ds);
+      Vec3 p = ray(ds * (i + 1));
       float h = p.length() - R;
       float h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
       rayleigh_optical_depth += h_rayleigh;
 
       Ray lightRay = Ray(p, sunDir);
       Hit light_res;
-      if(!scene.intersect(lightRay, light_res)) break;
+      if(!scene.intersect(lightRay, light_res)) {
+        break;
+      }
       
       float rayleigh_optical_depth_light = 0;
       float ds_light = light_res.t/samples;
       for(int j = 0; j < samples; j++) {
-        Vec3 p_light = lightRay(ds_light);
+        Vec3 p_light = lightRay(ds_light * (j + 1));
         float h_light = p_light.length() - R;
         rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
       }
 
-      RGB tau = beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light);
-      RGB attenuation = exp(-tau);
-      L += beta_rayleigh * h_rayleigh * attenuation * rayleigh_phase_function(-ray.direction, sunDir) * sunColor;
+      RGB trans = exp(-beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light));
+      RGB coeff_s = beta_rayleigh * h_rayleigh;
+      L += coeff_s * rayleigh_phase_function(-ray.direction, sunDir) * trans * sunColor;
     }
 
     if(res.hitShape->type == "ground") {
@@ -82,13 +84,12 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
       float rayleigh_optical_depth_light = 0;
       float ds_light = light_res.t/samples;
       for(int j = 0; j < samples; j++) {
-        Vec3 p_light = lightRay(ds_light);
+        Vec3 p_light = lightRay(ds_light * (j + 1));
         float h_light = p_light.length() - R;
         rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
       }
-      RGB tau = beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light);
-      RGB attenuation = exp(-tau);
-      L += beta_rayleigh * res.t * attenuation * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
+      RGB trans = exp(-beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light));
+      L += trans * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
     }
   }
   return L;
