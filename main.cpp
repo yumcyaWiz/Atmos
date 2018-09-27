@@ -15,7 +15,7 @@ const float R = 6360;
 const float R_atmos = 6420;
 
 
-const Vec3 sunDir = normalize(Vec3(1, 1, -1));
+const Vec3 sunDir = normalize(Vec3(0, 0, -1));
 const RGB sunColor = RGB(5);
 
 
@@ -87,16 +87,29 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
       float h_mie = std::exp(-h/mie_scaleheight) * ds;
       rayleigh_optical_depth += h_rayleigh;
       mie_optical_depth += h_mie;
-
+      
+      //一次散乱
       Ray lightRay = Ray(p, sunDir);
       Hit light_res;
-      if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") {
-        break;
-      }
-      
+      if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") break;
       RGB rayleigh_coeff, mie_coeff, trans;
       scattering_coeff(p, light_res.hitPos, rayleigh_optical_depth, mie_optical_depth, h_rayleigh, h_mie, rayleigh_coeff, mie_coeff, trans);
       L += (rayleigh_coeff * rayleigh_phase_function(-ray.direction, sunDir) + mie_coeff * mie_phase_function(-ray.direction, sunDir, 0.76)) * trans * sunColor;
+
+      //二次散乱
+      Vec3 p2 = p + ds*sampleSphere(sampler.getNext2D());
+      lightRay = Ray(p2, sunDir);
+      light_res = Hit();
+      if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") {
+        h = p2.length() - R;
+        float rh = std::exp(-h/rayleigh_scaleheight);
+        float mh = std::exp(-h/mie_scaleheight);
+        float ro = rayleigh_optical_depth + rh * ds;
+        float mo = mie_optical_depth + mh * ds;
+        RGB rayleigh_coeff2, mie_coeff2, trans2;
+        scattering_coeff(p2, light_res.hitPos, ro, mo, rh, mh, rayleigh_coeff2, mie_coeff2, trans2);
+        L += (rayleigh_coeff*rayleigh_coeff2 * rayleigh_phase_function(-ray.direction, sunDir)*rayleigh_phase_function(normalize(p - p2), sunDir) + mie_coeff*mie_coeff2 * mie_phase_function(-ray.direction, sunDir, 0.76)*mie_phase_function(normalize(p - p2), sunDir, 0.76)) * trans * sunColor;
+      }
     }
 
     if(res.hitShape->type == "ground") {
@@ -119,7 +132,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, 0, -R - 400), normalize(Vec3(1, 1, 1)));
+  Camera cam(Vec3(0, 0, -R - 10), normalize(Vec3(0, 1, 0)));
 
   auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
