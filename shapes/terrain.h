@@ -11,50 +11,50 @@ class Terrain : public Shape {
   private:
     std::shared_ptr<Sphere> sphere;
 
-    float glslRandom(const Vec2& u) const {
-      float i;
+    double glslRandom(const Vec2& u) const {
+      double i;
       return std::modf(std::sin(u.x * 12.9898 + u.y * 78.233) * 43758.5453123, &i);
     };
-    float heightMap(const Vec2& u) const {
+    double heightMap(const Vec2& u) const {
       return 200*(std::sin(100*u.x)*std::sin(100*u.y) + 1);
     };
     Vec3 heightMapNormal(const Vec3& p) const {
       Vec3 n = normalize(p - sphere->center);
       Vec2 u = approxUV(p);
 
-      float phi = 2*M_PI*u.x;
-      float theta = M_PI*u.y;
-      float px = sphere->radius * std::cos(phi) * std::sin(theta);
-      float py = sphere->radius * std::cos(theta);
-      float pz = sphere->radius * std::sin(phi) * std::sin(theta);
+      double phi = 2*M_PI*u.x;
+      double theta = M_PI*u.y;
+      double px = sphere->radius * std::cos(phi) * std::sin(theta);
+      double py = sphere->radius * std::cos(theta);
+      double pz = sphere->radius * std::sin(phi) * std::sin(theta);
       Vec3 dpdu = Vec3(-2*M_PI*pz, 0, 2*M_PI*px);
       Vec3 dpdv = M_PI * Vec3(py*std::cos(phi), -sphere->radius*std::sin(theta), py*std::sin(phi));
       return normalize(cross(dpdu, dpdv));
 
-      float du = (heightMap(u + Vec2(0.00001, 0)) - heightMap(u - Vec2(0.00001, 0)));
-      float dv = (heightMap(u + Vec2(0, 0.00001)) - heightMap(u - Vec2(0, 0.00001)));
+      double du = (heightMap(u + Vec2(0.00001, 0)) - heightMap(u - Vec2(0.00001, 0)));
+      double dv = (heightMap(u + Vec2(0, 0.00001)) - heightMap(u - Vec2(0, 0.00001)));
       Vec3 grad = normalize(du * dpdu + dv * dpdv);
       return grad;
     };
 
     Vec2 approxUV(const Vec3& p) const {
       Vec3 dir = normalize(p - sphere->center);
-      float phi = std::atan2(dir.z, dir.x);
+      double phi = std::atan2(dir.z, dir.x);
       if(phi < 0) phi += 2*M_PI;
-      float theta = std::acos(dir.y);
-      float u = phi/(2*M_PI);
-      float v = theta/M_PI;
+      double theta = std::acos(dir.y);
+      double u = phi/(2*M_PI);
+      double v = theta/M_PI;
       return Vec2(u, v);
     };
 
-    float terrainDist(const Vec3& p) const {
+    double terrainDist(const Vec3& p) const {
       Vec2 uv = approxUV(p);
-      float sphereDist = (p - sphere->center).length() - sphere->radius;
+      double sphereDist = (p - sphere->center).length() - sphere->radius;
       return sphereDist - heightMap(uv);
     };
 
   public:
-    Terrain(const std::shared_ptr<Material>& material, const std::string& _type, const Vec3& origin, float radius) : Shape(material, _type) {
+    Terrain(const std::shared_ptr<Material>& material, const std::string& _type, const Vec3& origin, double radius) : Shape(material, _type) {
       sphere = std::make_shared<Sphere>(material, _type, origin, radius);
     };
 
@@ -65,7 +65,7 @@ class Terrain : public Shape {
         Vec3 endPoint = res.hitPos;
         for(int i = 0; i < 1000; i++) {
           Vec3 midPoint = (startPoint + endPoint)/2;
-          float tdist = terrainDist(midPoint);
+          double tdist = terrainDist(midPoint);
 
           if(std::abs(tdist) < 0.1) {
             res.t = (midPoint - ray.origin).length();
@@ -91,11 +91,11 @@ class Terrain : public Shape {
       //レイマーチング
       else {
         bool hit = false;
-        float t = 0;
+        double t = 0;
         Vec3 p = ray(t);
         res.iteration = 0;
         for(int i = 0; i < 1000; i++) {
-          float dist = terrainDist(p);
+          double dist = terrainDist(p);
           res.iteration++;
           if(std::abs(dist) < 0.1) {
             hit = true;

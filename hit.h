@@ -7,12 +7,12 @@ class Shape;
 
 class Hit {
   public:
-    float t;
+    double t;
     Vec3 hitPos;
     Vec3 hitNormal;
     const Shape* hitShape;
-    float u;
-    float v;
+    double u;
+    double v;
     int iteration;
 
     Hit() : t(1e9), iteration(0) {};

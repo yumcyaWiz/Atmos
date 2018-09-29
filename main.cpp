@@ -21,7 +21,7 @@ const Vec3 sunDir = normalize(Vec3(0, -1, 0));
 const RGB sunColor = RGB(100);
 
 
-const float rayleigh_scaleheight = 8.0;
+const float rayleigh_scaleheight = 8;
 const float mie_scaleheight = 2.4;
 const RGB beta_rayleigh = RGB(3.8e-3, 13.5e-3, 33.1e-3);
 const RGB beta_mie = RGB(21e-3);
@@ -114,7 +114,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
     if(res.hitShape->type == "ground") {
       auto hitMaterial = res.hitShape->material;
-      float cos = std::max(dot(res.hitNormal, sunDir), 0.0f);
+      float cos = std::max(dot(res.hitNormal, sunDir), 0.0);
       Ray lightRay = Ray(res.hitPos, sunDir);
       Hit light_res;
       scene.intersect(lightRay, light_res);

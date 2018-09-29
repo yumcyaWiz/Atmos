@@ -10,7 +10,7 @@ class Lambert : public Material {
     RGB f(const Hit& res, const Vec3& wo, const Vec3& wi) const {
       return reflectance->getColor(res)/M_PI;
     };
-    RGB sample(const Hit& res, const Vec3& wo, Vec3& wi, Sampler& sampler, float& pdf) const {
+    RGB sample(const Hit& res, const Vec3& wo, Vec3& wi, Sampler& sampler, double& pdf) const {
       return reflectance->getColor(res)/M_PI;
     };
 };

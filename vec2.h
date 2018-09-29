@@ -4,64 +4,64 @@
 #include <cmath>
 class Vec2 {
   public:
-    float x;
-    float y;
+    double x;
+    double y;
 
     Vec2() { x = y = 0; };
-    Vec2(float _x) : x(_x), y(_x) {};
-    Vec2(float _x, float _y) : x(_x), y(_y) {};
+    Vec2(double _x) : x(_x), y(_x) {};
+    Vec2(double _x, double _y) : x(_x), y(_y) {};
 
-    float length() const {
+    double length() const {
       return std::sqrt(x*x + y*y);
     };
-    float length2() const {
+    double length2() const {
       return x*x + y*y;
     };
 };
 inline Vec2 operator+(const Vec2& v1, const Vec2& v2) {
   return Vec2(v1.x + v2.x, v1.y + v2.y);
 }
-inline Vec2 operator+(const Vec2& v1, float k) {
+inline Vec2 operator+(const Vec2& v1, double k) {
   return Vec2(v1.x + k, v1.y + k);
 }
-inline Vec2 operator+(float k, const Vec2& v2) {
+inline Vec2 operator+(double k, const Vec2& v2) {
   return Vec2(k + v2.x, k + v2.y);
 }
 
 inline Vec2 operator-(const Vec2& v1, const Vec2& v2) {
   return Vec2(v1.x - v2.x, v1.y - v2.y);
 }
-inline Vec2 operator-(const Vec2& v1, float k) {
+inline Vec2 operator-(const Vec2& v1, double k) {
   return Vec2(v1.x - k, v1.y - k);
 }
-inline Vec2 operator-(float k, const Vec2& v2) {
+inline Vec2 operator-(double k, const Vec2& v2) {
   return Vec2(k - v2.x, k - v2.y);
 }
 
 inline Vec2 operator*(const Vec2& v1, const Vec2& v2) {
   return Vec2(v1.x * v2.x, v1.y * v2.y);
 }
-inline Vec2 operator*(const Vec2& v1, float k) {
+inline Vec2 operator*(const Vec2& v1, double k) {
   return Vec2(v1.x * k, v1.y * k);
 }
-inline Vec2 operator*(float k, const Vec2& v2) {
+inline Vec2 operator*(double k, const Vec2& v2) {
   return Vec2(k * v2.x, k * v2.y);
 }
 
 inline Vec2 operator/(const Vec2& v1, const Vec2& v2) {
   return Vec2(v1.x / v2.x, v1.y / v2.y);
 }
-inline Vec2 operator/(const Vec2& v1, float k) {
+inline Vec2 operator/(const Vec2& v1, double k) {
   return Vec2(v1.x / k, v1.y / k);
 }
-inline Vec2 operator/(float k, const Vec2& v2) {
+inline Vec2 operator/(double k, const Vec2& v2) {
   return Vec2(k / v2.x, k / v2.y);
 }
 
-float dot(const Vec2& v1, const Vec2& v2) {
+double dot(const Vec2& v1, const Vec2& v2) {
   return v1.x*v2.x + v1.y*v2.y;
 }
-float cross(const Vec2& v1, const Vec2& v2) {
+double cross(const Vec2& v1, const Vec2& v2) {
   return v1.y*v2.x - v1.x*v2.y;
 }
 

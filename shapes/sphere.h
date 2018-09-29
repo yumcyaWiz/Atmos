@@ -7,21 +7,21 @@
 class Sphere : public Shape {
   public:
     Vec3 center;
-    float radius;
+    double radius;
 
-    Sphere(const std::shared_ptr<Material>& _material, const std::string& _type, const Vec3& _center, float _radius) : Shape(_material, _type), center(_center), radius(_radius) {};
+    Sphere(const std::shared_ptr<Material>& _material, const std::string& _type, const Vec3& _center, double _radius) : Shape(_material, _type), center(_center), radius(_radius) {};
 
     bool intersect(const Ray& ray, Hit& res) const {
-      float a = ray.direction.length2();
-      float b = 2*dot(ray.direction, ray.origin - center);
-      float c = (ray.origin - center).length2() - radius*radius;
-      float D = b*b - 4*a*c;
+      double a = ray.direction.length2();
+      double b = 2*dot(ray.direction, ray.origin - center);
+      double c = (ray.origin - center).length2() - radius*radius;
+      double D = b*b - 4*a*c;
       if(D < 0) return false;
 
-      float t0 = (-b - std::sqrt(D))/(2*a);
-      float t1 = (-b + std::sqrt(D))/(2*a);
+      double t0 = (-b - std::sqrt(D))/(2*a);
+      double t1 = (-b + std::sqrt(D))/(2*a);
 
-      float t = t0;
+      double t = t0;
       if(t > ray.tmax) return false;
       if(t < ray.tmin) {
         t = t1;
@@ -33,9 +33,9 @@ class Sphere : public Shape {
       res.hitNormal = normalize(res.hitPos - center);
       res.hitShape = this;
 
-      float phi = std::atan2(res.hitNormal.z, res.hitNormal.x);
+      double phi = std::atan2(res.hitNormal.z, res.hitNormal.x);
       if(phi < 0) phi += 2*M_PI;
-      float theta = std::acos(res.hitNormal.y);
+      double theta = std::acos(res.hitNormal.y);
       res.u = phi/(2*M_PI);
       res.v = theta/M_PI;
 
