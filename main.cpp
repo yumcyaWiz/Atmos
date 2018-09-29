@@ -10,17 +10,19 @@
 #include "samplers/mt.h"
 
 
-const int samples = 100;
+const int samples = 1;
+const int volume_samples = 10;
+const int scattering_depth = 3;
 const float R = 6360;
 const float R_atmos = 6420;
 
 
-const Vec3 sunDir = normalize(Vec3(0, 0, -1));
-const RGB sunColor = RGB(5);
+const Vec3 sunDir = normalize(Vec3(0, -1, 0));
+const RGB sunColor = RGB(100);
 
 
 const float rayleigh_scaleheight = 8.0;
-const float mie_scaleheight = 1.2;
+const float mie_scaleheight = 2.4;
 const RGB beta_rayleigh = RGB(3.8e-3, 13.5e-3, 33.1e-3);
 const RGB beta_mie = RGB(21e-3);
 
@@ -37,8 +39,8 @@ RGB Tr(const Vec3& p1, const Vec3& p2) {
   Ray lightRay(p1, normalize(p2 - p1));
   float rayleigh_optical_depth_light = 0;
   float mie_optical_depth_light = 0;
-  float ds_light = (p2 - p1).length()/samples;
-  for(int j = 0; j < samples; j++) {
+  float ds_light = (p2 - p1).length()/volume_samples;
+  for(int j = 0; j < volume_samples; j++) {
     Vec3 p_light = lightRay(ds_light * (j + 1));
     float h_light = p_light.length() - R;
     rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
@@ -75,35 +77,38 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
   Hit res;
   if(scene.intersect(ray, res)) {
-    float ds = res.t/samples;
-    for(int i = 0; i < samples; i++) {
+    float ds = res.t/volume_samples;
+    for(int i = 0; i < scattering_depth; i++) {
       Vec3 p = ray(ds * (i + 1));
-      float h = p.length() - R;
-      float h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
-      float h_mie = std::exp(-h/mie_scaleheight) * ds;
-      RGB tr = Tr(ray.origin, p);
-      
-      //一次散乱
-      Ray lightRay = Ray(p, sunDir);
-      Hit light_res;
-      if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") break;
-      RGB rayleigh_coeff = beta_rayleigh * h_rayleigh;
-      RGB mie_coeff = beta_mie * h_mie;
-      RGB tr_light = Tr(p, light_res.hitPos);
-      L += (rayleigh_coeff * rayleigh_phase_function(-ray.direction, sunDir) + mie_coeff * mie_phase_function(-ray.direction, sunDir, 0.76)) * tr * tr_light * sunColor;
-
-      //二次散乱
-      Vec3 p2 = p + ds*sampleSphere(sampler.getNext2D());
-      lightRay = Ray(p2, sunDir);
-      light_res = Hit();
-      if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") {
-        h = p2.length() - R;
-        float rh = std::exp(-h/rayleigh_scaleheight);
-        float mh = std::exp(-h/mie_scaleheight);
-        RGB rayleigh_coeff2 = beta_rayleigh * rh;
-        RGB mie_coeff2 = beta_mie * mh;
-        RGB tr2 = Tr(p, p2) * Tr(p2, light_res.hitPos);
-        L += (rayleigh_coeff*rayleigh_coeff2 * rayleigh_phase_function(-ray.direction, sunDir)*rayleigh_phase_function(normalize(p - p2), sunDir) + mie_coeff*mie_coeff2 * mie_phase_function(-ray.direction, sunDir, 0.76)*mie_phase_function(normalize(p - p2), sunDir, 0.76)) * tr * tr2 * sunColor;
+      RGB beta(1);
+      RGB rayleigh_coeff(1);
+      RGB mie_coeff(1);
+      Vec3 wo = -ray.direction;
+      for(int j = 0; j < volume_samples; j++) {
+        if(j != 0) {
+          Vec3 p_prev = p;
+          p = p_prev + ds*sampleSphere(sampler.getNext2D());
+          beta *= 4*M_PI * Tr(p_prev, p);
+          Vec3 wi = normalize(p - p_prev);
+          rayleigh_coeff *= rayleigh_phase_function(wo, wi);
+          mie_coeff *= mie_phase_function(wo, normalize(p - p_prev), 0.76);
+          wo = -wi;
+        }
+        float h = p.length() - R;
+        if(h < 0) break;
+        float h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
+        float h_mie = std::exp(-h/mie_scaleheight) * ds;
+        RGB tr = Tr(ray.origin, p);
+        beta *= tr;
+        
+        //Direct Light
+        Ray lightRay = Ray(p, sunDir);
+        Hit light_res;
+        if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") break;
+        rayleigh_coeff *= beta_rayleigh * h_rayleigh;
+        mie_coeff *= beta_mie * h_mie;
+        RGB tr_light = Tr(p, light_res.hitPos);
+        L += (rayleigh_coeff * rayleigh_phase_function(wo, sunDir) + mie_coeff * mie_phase_function(wo, sunDir, 0.76)) * beta * tr_light * sunColor;
       }
     }
 
@@ -126,7 +131,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, 0, -R - 10), normalize(Vec3(0, 1, 0)));
+  Camera cam(Vec3(0, 0, -R - 1), normalize(Vec3(0, 1, 0)));
 
   auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
@@ -141,7 +146,7 @@ int main() {
   Scene scene(shapes);
   Mt mt;
 
-  for(int k = 0; k < 1; k++) {
+  for(int k = 0; k < samples; k++) {
 #pragma omp parallel for schedule(dynamic, 1)
     for(int i = 0; i < film.width; i++) {
       for(int j = 0; j < film.height; j++) {
