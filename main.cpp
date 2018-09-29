@@ -33,6 +33,21 @@ RGB rayleigh_beta(float height) {
 }
 
 
+RGB Tr(const Vec3& p1, const Vec3& p2) {
+  Ray lightRay(p1, normalize(p2 - p1));
+  float rayleigh_optical_depth_light = 0;
+  float mie_optical_depth_light = 0;
+  float ds_light = (p2 - p1).length()/samples;
+  for(int j = 0; j < samples; j++) {
+    Vec3 p_light = lightRay(ds_light * (j + 1));
+    float h_light = p_light.length() - R;
+    rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
+    mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
+  }
+  return exp(-(beta_rayleigh * rayleigh_optical_depth_light + beta_mie * mie_optical_depth_light));
+}
+
+
 void scattering_coeff(const Vec3& p1, const Vec3& p2, float rayleigh_optical_depth, float mie_optical_depth, float h_rayleigh, float h_mie, RGB& rayleigh_coeff, RGB& mie_coeff, RGB& trans) {
   Ray lightRay(p1, normalize(p2 - p1));
   float rayleigh_optical_depth_light = 0;
@@ -78,25 +93,24 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
   Hit res;
   if(scene.intersect(ray, res)) {
     float ds = res.t/samples;
-    float rayleigh_optical_depth = 0;
-    float mie_optical_depth = 0;
     for(int i = 0; i < samples; i++) {
       Vec3 p = ray(ds * (i + 1));
       float h = p.length() - R;
       float h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
       float h_mie = std::exp(-h/mie_scaleheight) * ds;
-      rayleigh_optical_depth += h_rayleigh;
-      mie_optical_depth += h_mie;
+      RGB tr = Tr(ray.origin, p);
       
       //一次散乱
       Ray lightRay = Ray(p, sunDir);
       Hit light_res;
       if(!scene.intersect(lightRay, light_res) || light_res.hitShape->type == "ground") break;
-      RGB rayleigh_coeff, mie_coeff, trans;
-      scattering_coeff(p, light_res.hitPos, rayleigh_optical_depth, mie_optical_depth, h_rayleigh, h_mie, rayleigh_coeff, mie_coeff, trans);
-      L += (rayleigh_coeff * rayleigh_phase_function(-ray.direction, sunDir) + mie_coeff * mie_phase_function(-ray.direction, sunDir, 0.76)) * trans * sunColor;
+      RGB rayleigh_coeff = beta_rayleigh * h_rayleigh;
+      RGB mie_coeff = beta_mie * h_mie;
+      RGB tr_light = Tr(p, light_res.hitPos);
+      L += (rayleigh_coeff * rayleigh_phase_function(-ray.direction, sunDir) + mie_coeff * mie_phase_function(-ray.direction, sunDir, 0.76)) * tr * tr_light * sunColor;
 
       //二次散乱
+      /*
       Vec3 p2 = p + ds*sampleSphere(sampler.getNext2D());
       lightRay = Ray(p2, sunDir);
       light_res = Hit();
@@ -110,6 +124,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
         scattering_coeff(p2, light_res.hitPos, ro, mo, rh, mh, rayleigh_coeff2, mie_coeff2, trans2);
         L += (rayleigh_coeff*rayleigh_coeff2 * rayleigh_phase_function(-ray.direction, sunDir)*rayleigh_phase_function(normalize(p - p2), sunDir) + mie_coeff*mie_coeff2 * mie_phase_function(-ray.direction, sunDir, 0.76)*mie_phase_function(normalize(p - p2), sunDir, 0.76)) * trans * sunColor;
       }
+      */
     }
 
     if(res.hitShape->type == "ground") {
@@ -120,9 +135,8 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
       scene.intersect(lightRay, light_res);
 
       if(light_res.hitShape->type == "atmos") {
-        RGB rayleigh_coeff, mie_coeff, trans;
-        scattering_coeff(res.hitPos, light_res.hitPos, rayleigh_optical_depth, mie_optical_depth, 0, 0, rayleigh_coeff, mie_coeff, trans);
-        L += trans * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
+        RGB tr= Tr(ray.origin, res.hitPos) * Tr(res.hitPos, light_res.hitPos);
+        L += tr * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
       }
     }
   }
