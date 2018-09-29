@@ -13,36 +13,36 @@
 const int samples = 1;
 const int volume_samples = 10;
 const int scattering_depth = 3;
-const float R = 6360;
-const float R_atmos = 6420;
+const double R = 6360 * 1000;
+const double R_atmos = 6420 * 1000;
 
 
 const Vec3 sunDir = normalize(Vec3(0, -1, 0));
 const RGB sunColor = RGB(100);
 
 
-const float rayleigh_scaleheight = 8;
-const float mie_scaleheight = 2.4;
-const RGB beta_rayleigh = RGB(3.8e-3, 13.5e-3, 33.1e-3);
-const RGB beta_mie = RGB(21e-3);
+const double rayleigh_scaleheight = 8000;
+const double mie_scaleheight = 2400;
+const RGB beta_rayleigh = RGB(3.8e-6, 13.5e-6, 33.1e-6);
+const RGB beta_mie = RGB(21e-6);
 
 
-float rayleigh_beta_lambda(float height, float lambda) {
+double rayleigh_beta_lambda(double height, double lambda) {
   return 8*std::pow(M_PI, 3.0)*std::pow(std::pow(1.000292, 2.0) - 1, 2.0)/(3*1.2*std::pow(lambda, 4.0)) * std::exp(-height/8.0);
 }
-RGB rayleigh_beta(float height) {
+RGB rayleigh_beta(double height) {
   return RGB(rayleigh_beta_lambda(height, 440*1e-9), rayleigh_beta_lambda(height, 550*1e-9), rayleigh_beta_lambda(height, 680*1e-9));
 }
 
 
 RGB Tr(const Vec3& p1, const Vec3& p2) {
   Ray lightRay(p1, normalize(p2 - p1));
-  float rayleigh_optical_depth_light = 0;
-  float mie_optical_depth_light = 0;
-  float ds_light = (p2 - p1).length()/volume_samples;
+  double rayleigh_optical_depth_light = 0;
+  double mie_optical_depth_light = 0;
+  double ds_light = (p2 - p1).length()/volume_samples;
   for(int j = 0; j < volume_samples; j++) {
     Vec3 p_light = lightRay(ds_light * (j + 1));
-    float h_light = p_light.length() - R;
+    double h_light = p_light.length() - R;
     rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
     mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
   }
@@ -50,11 +50,11 @@ RGB Tr(const Vec3& p1, const Vec3& p2) {
 }
 
 
-float rayleigh_phase_function(const Vec3& wo, const Vec3& wi) {
-  float mu = dot(wo, wi);
+double rayleigh_phase_function(const Vec3& wo, const Vec3& wi) {
+  double mu = dot(wo, wi);
   return 3.0/(16.0*M_PI) * (1.0 + mu*mu);
 }
-float mie_phase_function(const Vec3& wo, const Vec3& wi, float g) {
+double mie_phase_function(const Vec3& wo, const Vec3& wi, double g) {
   double mu = dot(wo, wi);
   return 3.0/(8.0*M_PI) * ((1.0 - g*g)*(1.0 + mu*mu))/((2.0 + g*g)*std::pow(1.0 + g*g - 2.0*g*mu, 1.5));
 }
@@ -77,7 +77,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
   Hit res;
   if(scene.intersect(ray, res)) {
-    float ds = res.t/volume_samples;
+    double ds = res.t/volume_samples;
     for(int i = 0; i < volume_samples; i++) {
       Vec3 p = ray(ds * (i + 1));
       RGB beta(1);
@@ -94,10 +94,10 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
           mie_coeff *= mie_phase_function(wo, normalize(p - p_prev), 0.76);
           wo = -wi;
         }
-        float h = p.length() - R;
+        double h = p.length() - R;
         if(h < 0) break;
-        float h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
-        float h_mie = std::exp(-h/mie_scaleheight) * ds;
+        double h_rayleigh = std::exp(-h/rayleigh_scaleheight) * ds;
+        double h_mie = std::exp(-h/mie_scaleheight) * ds;
         RGB tr = Tr(ray.origin, p);
         beta *= tr;
         
@@ -114,7 +114,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
     if(res.hitShape->type == "ground") {
       auto hitMaterial = res.hitShape->material;
-      float cos = std::max(dot(res.hitNormal, sunDir), 0.0);
+      double cos = std::max(dot(res.hitNormal, sunDir), 0.0);
       Ray lightRay = Ray(res.hitPos, sunDir);
       Hit light_res;
       scene.intersect(lightRay, light_res);
@@ -150,8 +150,8 @@ int main() {
 #pragma omp parallel for schedule(dynamic, 1)
     for(int i = 0; i < film.width; i++) {
       for(int j = 0; j < film.height; j++) {
-        float u = (2.0*i + mt.getNext() - film.width)/film.width;
-        float v = (2.0*j + mt.getNext() - film.height)/film.width;
+        double u = (2.0*i + mt.getNext() - film.width)/film.width;
+        double v = (2.0*j + mt.getNext() - film.height)/film.width;
         Ray ray = cam.getRay(u, v);
         film.addSample(i, j, Li(ray, scene, mt));
       }
