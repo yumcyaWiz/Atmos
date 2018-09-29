@@ -78,13 +78,13 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
   Hit res;
   if(scene.intersect(ray, res)) {
     float ds = res.t/volume_samples;
-    for(int i = 0; i < scattering_depth; i++) {
+    for(int i = 0; i < volume_samples; i++) {
       Vec3 p = ray(ds * (i + 1));
       RGB beta(1);
       RGB rayleigh_coeff(1);
       RGB mie_coeff(1);
       Vec3 wo = -ray.direction;
-      for(int j = 0; j < volume_samples; j++) {
+      for(int j = 0; j < scattering_depth; j++) {
         if(j != 0) {
           Vec3 p_prev = p;
           p = p_prev + ds*sampleSphere(sampler.getNext2D());
