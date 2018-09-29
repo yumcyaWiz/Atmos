@@ -48,23 +48,6 @@ RGB Tr(const Vec3& p1, const Vec3& p2) {
 }
 
 
-void scattering_coeff(const Vec3& p1, const Vec3& p2, float rayleigh_optical_depth, float mie_optical_depth, float h_rayleigh, float h_mie, RGB& rayleigh_coeff, RGB& mie_coeff, RGB& trans) {
-  Ray lightRay(p1, normalize(p2 - p1));
-  float rayleigh_optical_depth_light = 0;
-  float mie_optical_depth_light = 0;
-  float ds_light = (p2 - p1).length()/samples;
-  for(int j = 0; j < samples; j++) {
-    Vec3 p_light = lightRay(ds_light * (j + 1));
-    float h_light = p_light.length() - R;
-    rayleigh_optical_depth_light += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
-    mie_optical_depth_light += std::exp(-h_light/mie_scaleheight) * ds_light;
-  }
-  trans = exp(-(beta_rayleigh * (rayleigh_optical_depth + rayleigh_optical_depth_light) + beta_mie * (mie_optical_depth + mie_optical_depth_light)));
-  rayleigh_coeff = beta_rayleigh * h_rayleigh;
-  mie_coeff = beta_mie * h_mie;
-}
-
-
 float rayleigh_phase_function(const Vec3& wo, const Vec3& wi) {
   float mu = dot(wo, wi);
   return 3.0/(16.0*M_PI) * (1.0 + mu*mu);
@@ -110,7 +93,6 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
       L += (rayleigh_coeff * rayleigh_phase_function(-ray.direction, sunDir) + mie_coeff * mie_phase_function(-ray.direction, sunDir, 0.76)) * tr * tr_light * sunColor;
 
       //二次散乱
-      /*
       Vec3 p2 = p + ds*sampleSphere(sampler.getNext2D());
       lightRay = Ray(p2, sunDir);
       light_res = Hit();
@@ -118,13 +100,11 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
         h = p2.length() - R;
         float rh = std::exp(-h/rayleigh_scaleheight);
         float mh = std::exp(-h/mie_scaleheight);
-        float ro = rayleigh_optical_depth + rh * ds;
-        float mo = mie_optical_depth + mh * ds;
-        RGB rayleigh_coeff2, mie_coeff2, trans2;
-        scattering_coeff(p2, light_res.hitPos, ro, mo, rh, mh, rayleigh_coeff2, mie_coeff2, trans2);
-        L += (rayleigh_coeff*rayleigh_coeff2 * rayleigh_phase_function(-ray.direction, sunDir)*rayleigh_phase_function(normalize(p - p2), sunDir) + mie_coeff*mie_coeff2 * mie_phase_function(-ray.direction, sunDir, 0.76)*mie_phase_function(normalize(p - p2), sunDir, 0.76)) * trans * sunColor;
+        RGB rayleigh_coeff2 = beta_rayleigh * rh;
+        RGB mie_coeff2 = beta_mie * mh;
+        RGB tr2 = Tr(p, p2) * Tr(p2, light_res.hitPos);
+        L += (rayleigh_coeff*rayleigh_coeff2 * rayleigh_phase_function(-ray.direction, sunDir)*rayleigh_phase_function(normalize(p - p2), sunDir) + mie_coeff*mie_coeff2 * mie_phase_function(-ray.direction, sunDir, 0.76)*mie_phase_function(normalize(p - p2), sunDir, 0.76)) * tr * tr2 * sunColor;
       }
-      */
     }
 
     if(res.hitShape->type == "ground") {
