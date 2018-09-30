@@ -12,12 +12,12 @@
 
 const int samples = 1;
 const int volume_samples = 10;
-const int scattering_depth = 3;
+const int scattering_depth = 1;
 const double R = 6360 * 1000;
 const double R_atmos = 6420 * 1000;
 
 
-const Vec3 sunDir = normalize(Vec3(0, -1, 0));
+const Vec3 sunDir = normalize(Vec3(0, 0, 1));
 const RGB sunColor = RGB(50);
 
 
@@ -46,16 +46,16 @@ RGB Tr(const Vec3& p1, const Vec3& p2) {
     rayleigh_optical_depth += std::exp(-h_light/rayleigh_scaleheight) * ds_light;
     mie_optical_depth += std::exp(-h_light/mie_scaleheight) * ds_light;
   }
-  return exp(-(beta_rayleigh * rayleigh_optical_depth + beta_mie * mie_optical_depth));
+  return exp(-(beta_rayleigh * rayleigh_optical_depth + 1.1 * beta_mie * mie_optical_depth));
 }
 
 
 double rayleigh_phase_function(const Vec3& wo, const Vec3& wi) {
-  double mu = dot(wo, wi);
+  double mu = dot(wo, -wi);
   return 3.0/(16.0*M_PI) * (1.0 + mu*mu);
 }
 double mie_phase_function(const Vec3& wo, const Vec3& wi, double g) {
-  double mu = dot(wo, wi);
+  double mu = dot(wo, -wi);
   return 3.0/(8.0*M_PI) * ((1.0 - g*g)*(1.0 + mu*mu))/((2.0 + g*g)*std::pow(1.0 + g*g - 2.0*g*mu, 1.5));
 }
 
@@ -95,8 +95,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
           wo = -wi;
         }
         else {
-          RGB tr = Tr(ray.origin, p);
-          beta *= tr;
+          beta *= Tr(ray.origin, p);
         }
         double h = p.length() - R;
         if(h < 0) break;
@@ -134,7 +133,7 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
 int main() {
   Film film(512, 512);
-  Camera cam(Vec3(0, 0, -R - 1), normalize(Vec3(0, 1, 0)));
+  Camera cam(Vec3(R + 1, 0, 0), normalize(Vec3(0, 0, 1)));
 
   auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
