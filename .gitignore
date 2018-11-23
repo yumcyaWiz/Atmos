@@ -1,5 +1,6 @@
 *.out
 *.ppm
 *.jpg
+*.jpeg
 *.png
 *.hdr

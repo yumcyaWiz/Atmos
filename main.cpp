@@ -10,15 +10,15 @@
 #include "samplers/mt.h"
 
 
-const int samples = 1;
+const int samples = 100;
 const int volume_samples = 10;
-const int scattering_depth = 1;
+const int scattering_depth = 3;
 const double R = 6360 * 1000;
 const double R_atmos = 6420 * 1000;
 
 
-const Vec3 sunDir = normalize(Vec3(0, 0, 1));
-const RGB sunColor = RGB(50);
+const Vec3 sunDir = normalize(Vec3(0, 1, -0.1));
+const RGB sunColor = RGB(20);
 
 
 const double rayleigh_scaleheight = 8000;
@@ -116,15 +116,17 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
     if(res.hitShape->type == "ground") {
       auto hitMaterial = res.hitShape->material;
       double cos = std::max(dot(res.hitNormal, sunDir), 0.0);
-      cos = 0;
-      Ray lightRay = Ray(res.hitPos, sunDir);
+      Ray lightRay = Ray(res.hitPos + res.hitNormal, sunDir);
+      /*
       Hit light_res;
       scene.intersect(lightRay, light_res);
 
       if(light_res.hitShape->type == "atmos") {
-        RGB tr= Tr(ray.origin, res.hitPos) * Tr(res.hitPos, light_res.hitPos);
+        RGB tr = Tr(ray.origin, res.hitPos) * Tr(res.hitPos, light_res.hitPos);
         L += tr * hitMaterial->f(res, -ray.direction, sunDir) * cos * sunColor;
       }
+      */
+      L += hitMaterial->f(res, -ray.direction, sunDir) * cos * Tr(ray.origin, res.hitPos) * Li(lightRay, scene, sampler);
     }
   }
   return L;
@@ -132,8 +134,8 @@ RGB Li(const Ray& _ray, const Scene& scene, Sampler& sampler) {
 
 
 int main() {
-  Film film(512, 512);
-  Camera cam(Vec3(R + 1, 0, 0), normalize(Vec3(0, 0, 1)));
+  Film film(2138, 1536);
+  Camera cam(Vec3(0, 0, -R - 0.1*1000), normalize(Vec3(0, 1, 0)));
 
   auto tex = std::make_shared<ImageTexture>("earth2.jpg");
   auto mat = std::make_shared<Lambert>(tex);
@@ -158,6 +160,7 @@ int main() {
         film.addSample(i, j, Li(ray, scene, mt));
       }
     }
+    std::cout << double(k)/samples * 100 << "%" << std::endl;
   }
   film.ppm_output("output.ppm");
 
